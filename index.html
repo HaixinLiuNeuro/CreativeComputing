@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>A Loop Inside a Loop — Creative Computing 7, Day 11</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  color-scheme: light;
+  --paper:#F2F4F0;
+  --card:#FFFFFF;
+  --sunk:#EAEEE9;
+  --ink:#15232B;
+  --muted:#5C6B70;
+  --rule:#D3D9D3;
+  --outer:#6D3BE4;
+  --outer-soft:#EFE8FF;
+  --inner:#0E9594;
+  --inner-soft:#DDF2F0;
+  --flag:#B8402A;
+  --grid:#DCE2DC;
+  --kw:#9A3FA8;
+  --str:#1F7A4D;
+  --cmt:#8A9699;
+  --sans:'Space Grotesk', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --mono:'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  box-sizing:border-box;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme: dark;
+    --paper:#0E1518; --card:#172125; --sunk:#121B1E; --ink:#E8EFEA; --muted:#95A7A8;
+    --rule:#2A363A; --outer:#A98AFF; --outer-soft:#271C44; --inner:#44D3CB; --inner-soft:#0E3331;
+    --flag:#F08163; --grid:#223034; --kw:#E08BE8; --str:#6FD69B; --cmt:#6E7E82;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --paper:#0E1518; --card:#172125; --sunk:#121B1E; --ink:#E8EFEA; --muted:#95A7A8;
+  --rule:#2A363A; --outer:#A98AFF; --outer-soft:#271C44; --inner:#44D3CB; --inner-soft:#0E3331;
+  --flag:#F08163; --grid:#223034; --kw:#E08BE8; --str:#6FD69B; --cmt:#6E7E82;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top: env(safe-area-inset-top, 0px);}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:17px;line-height:1.55;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1140px;margin:0 auto;padding:22px 18px 70px}
+h1,h2,h3{margin:0;font-weight:700;letter-spacing:-0.015em;line-height:1.15}
+h1{font-size:clamp(26px,4.4vw,40px)}
+h3{font-size:17px;font-weight:600;margin-bottom:.4em}
+p{margin:0 0 .7em} p:last-child{margin-bottom:0}
+code{font-family:var(--mono);font-size:.9em}
+
+.masthead{display:flex;align-items:flex-start;gap:16px;justify-content:space-between;flex-wrap:wrap}
+.course{font-size:13px;font-weight:600;color:var(--muted)}
+.lede{max-width:64ch;color:var(--muted);margin-top:10px}
+.lede b{color:var(--ink);font-weight:600}
+.theme-btn{font:inherit;font-size:13px;font-weight:600;color:var(--muted);background:var(--card);border:1px solid var(--rule);border-radius:999px;padding:7px 14px;cursor:pointer;white-space:nowrap}
+.theme-btn:hover{color:var(--ink);border-color:var(--muted)}
+
+.tabs{display:flex;gap:4px;margin:26px 0 20px;background:var(--sunk);border:1px solid var(--rule);border-radius:12px;padding:4px;flex-wrap:wrap}
+.tab{flex:1 1 150px;font:inherit;font-size:15px;font-weight:600;padding:10px 12px;border:0;border-radius:9px;background:transparent;color:var(--muted);cursor:pointer}
+.tab:hover{color:var(--ink)}
+.tab[aria-selected="true"]{background:var(--card);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.09)}
+.panel[hidden]{display:none}
+
+.split{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:20px;align-items:start}
+@media (max-width:900px){.split{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--rule);border-radius:14px;padding:18px}
+.stage{padding:14px}
+
+.counters{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.ctr{border:1px solid var(--rule);border-radius:11px;padding:11px 13px}
+.ctr.is-outer{border-left:4px solid var(--outer)}
+.ctr.is-inner{border-left:4px solid var(--inner)}
+.ctr .lab{font-size:12.5px;font-weight:600;color:var(--muted);display:block}
+.ctr .val{font-size:27px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.2}
+.ctr.is-outer .val{color:var(--outer)} .ctr.is-inner .val{color:var(--inner)}
+.ctr .of{font-size:15px;font-weight:500;color:var(--muted)}
+.tally{border:1px dashed var(--rule);border-radius:11px;padding:10px 13px;margin-bottom:14px;font-size:15px;color:var(--muted);background:var(--sunk)}
+.tally b{color:var(--ink);font-variant-numeric:tabular-nums;font-size:19px}
+.tally .eq{font-family:var(--mono);font-size:13.5px}
+
+/* ---- python code panel ---- */
+.pywrap{border:1px solid var(--rule);border-radius:11px;background:var(--sunk);overflow:hidden}
+.pybar{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 10px 7px 12px;border-bottom:1px solid var(--rule);font-size:12.5px;font-weight:600;color:var(--muted)}
+.copy{font:inherit;font-size:12px;font-weight:600;border:1px solid var(--rule);background:var(--card);color:var(--ink);border-radius:7px;padding:4px 10px;cursor:pointer}
+.copy:hover{border-color:var(--ink)}
+.py{font-family:var(--mono);font-size:13px;line-height:1.75;padding:9px 6px 11px 0;overflow-x:auto}
+.pyline{display:flex;align-items:flex-start;padding:1px 10px 1px 0;white-space:nowrap}
+.pyline .mark{flex:0 0 16px;text-align:center;color:var(--ink);font-weight:700;opacity:0}
+.pyline.hot{background:var(--card);box-shadow:inset 3px 0 0 var(--ink)}
+.pyline.hot .mark{opacity:1}
+.ind{flex:0 0 20px;align-self:stretch;margin-right:1px}
+.ind-outer{border-left:2px solid var(--outer);opacity:.32}
+.ind-inner{border-left:2px solid var(--inner);opacity:.32}
+.ind-outer.live{opacity:1;background:var(--outer-soft)}
+.ind-inner.live{opacity:1;background:var(--inner-soft)}
+.kw{color:var(--kw);font-weight:700}
+.st{color:var(--str)}
+.cm{color:var(--cmt)}
+.num-lit{color:var(--outer);font-weight:700}
+@media (max-width:480px){ .cm{display:none} .py{font-size:12px} .ind{flex-basis:16px} }
+
+.owner{margin-top:10px;font-size:14px;color:var(--muted);min-height:2.6em;border-left:3px solid var(--rule);padding-left:11px}
+.owner b{color:var(--ink);font-weight:600}
+.owner .tag-o{color:var(--outer);font-weight:700}
+.owner .tag-i{color:var(--inner);font-weight:700}
+
+.ctrls{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+button.act{font:inherit;font-size:15px;font-weight:600;padding:9px 16px;border-radius:9px;cursor:pointer;border:1px solid var(--ink);background:var(--ink);color:var(--paper)}
+button.act.ghost{background:transparent;color:var(--ink);border-color:var(--rule)}
+button.act.ghost:hover{border-color:var(--ink)}
+.sliders{display:grid;gap:11px;margin-top:16px}
+.sl{display:grid;grid-template-columns:1fr auto;gap:3px 10px;align-items:center}
+.sl label{font-size:14px;font-weight:600}
+.sl .num{font-family:var(--mono);font-size:14px;font-weight:700;color:var(--muted);font-variant-numeric:tabular-nums}
+.sl input[type=range]{grid-column:1/-1;width:100%;accent-color:var(--ink);margin:0}
+.sl.outer label{color:var(--outer)} .sl.outer input[type=range]{accent-color:var(--outer)}
+.sl.inner label{color:var(--inner)} .sl.inner input[type=range]{accent-color:var(--inner)}
+.presets{display:flex;gap:6px;flex-wrap:wrap;margin-top:2px}
+.preset{font:inherit;font-size:13px;font-weight:600;padding:6px 11px;border-radius:999px;border:1px solid var(--rule);background:transparent;color:var(--ink);cursor:pointer}
+.preset:hover{border-color:var(--inner);color:var(--inner)}
+.hint{font-size:14px;color:var(--muted);margin-top:14px}
+
+#gridwrap{overflow-x:auto}
+.rowline{display:flex;align-items:center;gap:10px;margin:7px 0;min-height:30px}
+.rowtag{font-family:var(--mono);font-size:12.5px;font-weight:700;color:var(--muted);min-width:96px;flex:0 0 auto;padding:3px 7px;border-radius:6px;border:1px solid transparent}
+.rowline.active .rowtag{color:var(--outer);background:var(--outer-soft);border-color:var(--outer)}
+.dots{display:flex;gap:7px;flex-wrap:wrap}
+.dot{width:24px;height:24px;border-radius:7px;border:1.5px solid var(--rule);display:grid;place-items:center;font-size:11px;font-weight:700;color:transparent;transition:background .1s,border-color .1s}
+.dot.lit{background:var(--inner);border-color:var(--inner);color:var(--card)}
+.dot.now{outline:3px solid var(--ink);outline-offset:2px}
+
+canvas{display:block;width:100%;height:auto;border-radius:10px;background:var(--sunk);touch-action:pan-y}
+.legend{display:flex;gap:10px;flex-wrap:wrap;font-size:13px;color:var(--muted);margin-top:10px;align-items:center}
+.swatches{display:flex;gap:2px}
+.sw{height:15px;border-radius:3px;flex:0 0 auto}
+
+.quiz{display:grid;gap:16px}
+.q{background:var(--card);border:1px solid var(--rule);border-radius:14px;padding:18px}
+.q .ask{font-weight:600;margin-bottom:12px}
+.opts{display:flex;gap:8px;flex-wrap:wrap}
+.opt{font:inherit;font-size:15px;font-weight:600;padding:9px 15px;border-radius:9px;border:1px solid var(--rule);background:transparent;color:var(--ink);cursor:pointer}
+.opt:hover{border-color:var(--ink)}
+.opt.right{background:var(--inner);border-color:var(--inner);color:#fff}
+.opt.wrong{border-color:var(--flag);color:var(--flag)}
+.answer{margin-top:14px;border-top:1px solid var(--rule);padding-top:14px}
+.answer[hidden]{display:none}
+.twoup{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:12px}
+@media (max-width:620px){.twoup{grid-template-columns:1fr}}
+figure{margin:0}
+.twoup figcaption{font-family:var(--mono);font-size:12px;color:var(--muted);margin-top:7px;line-height:1.5;white-space:pre-wrap}
+.codeline{font-family:var(--mono);font-size:13px;background:var(--sunk);border:1px solid var(--rule);border-radius:8px;padding:10px 12px;white-space:pre;overflow-x:auto;line-height:1.7}
+
+details.notes{margin-top:26px;background:var(--card);border:1px solid var(--rule);border-radius:14px;padding:0 18px}
+details.notes summary{cursor:pointer;font-weight:600;padding:15px 0;list-style:none}
+details.notes summary::-webkit-details-marker{display:none}
+details.notes summary::before{content:"+ ";color:var(--muted);font-family:var(--mono)}
+details.notes[open] summary::before{content:"– "}
+details.notes .body{padding-bottom:18px;border-top:1px solid var(--rule);padding-top:15px;font-size:16px}
+details.notes ul{margin:0 0 1em;padding-left:1.15em}
+details.notes li{margin-bottom:.45em}
+.tbl{width:100%;border-collapse:collapse;font-size:14.5px;margin:.4em 0 1em}
+.tbl th,.tbl td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--rule)}
+.tbl th{font-size:13px;color:var(--muted);font-weight:600}
+.tbl td{font-family:var(--mono);font-size:13px}
+.tbl td:first-child{font-family:var(--sans);font-weight:600;font-size:14.5px}
+
+:focus-visible{outline:3px solid var(--outer);outline-offset:2px;border-radius:6px}
+@media (prefers-reduced-motion: reduce){*{transition:none !important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="masthead">
+    <div>
+      <div class="course">Creative Computing 7 · Day 11 · Nested Loops &amp; Shape Patterns</div>
+      <h1>A loop inside a loop</h1>
+    </div>
+    <button class="theme-btn" id="themeBtn">Dark mode</button>
+  </header>
+  <p class="lede">One rule explains all of it: <b>the inner loop finishes completely every single time the outer loop takes one step.</b> Watch the counting, drive the Finch, then try to break it on purpose.</p>
+
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-tab="count">1 · Watch the counting</button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="draw">2 · Drive the Finch</button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="break">3 · Break it on purpose</button>
+  </div>
+
+  <!-- ================= TAB 1 ================= -->
+  <section class="panel" id="panel-count" role="tabpanel">
+    <div class="split">
+      <div class="card stage">
+        <div id="gridwrap"></div>
+        <div class="legend">
+          <span><span class="sw" style="background:var(--outer);width:15px;display:inline-block;vertical-align:-2px"></span> one row = one pass of the outer loop</span>
+          <span><span class="sw" style="background:var(--inner);width:15px;display:inline-block;vertical-align:-2px"></span> one square = one beep</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="counters">
+          <div class="ctr is-outer"><span class="lab">outer</span><span class="val" id="c1-outer">0</span><span class="of" id="c1-outer-of"> of 3</span></div>
+          <div class="ctr is-inner"><span class="lab">inner</span><span class="val" id="c1-inner">0</span><span class="of" id="c1-inner-of"> of 4</span></div>
+        </div>
+        <div class="tally">Beeps so far: <b id="c1-total">0</b> <span class="eq" id="c1-eq">— ends at 3 × 4 = 12</span></div>
+
+        <div class="pywrap">
+          <div class="pybar"><span>beeps.py</span><button class="copy" data-copy="c1">Copy</button></div>
+          <div class="py" id="c1-py"></div>
+        </div>
+        <div class="owner" id="c1-owner">Press Play. Watch how far the <span class="tag-i">inner</span> counter gets before the <span class="tag-o">outer</span> counter moves at all.</div>
+
+        <div class="ctrls">
+          <button class="act" id="c1-play">Play</button>
+          <button class="act ghost" id="c1-step">One beep</button>
+          <button class="act ghost" id="c1-reset">Reset</button>
+        </div>
+
+        <div class="sliders">
+          <div class="sl outer"><label for="c1-so">range() of the outer loop</label><span class="num" id="c1-so-n">3</span><input type="range" id="c1-so" min="1" max="6" value="3"></div>
+          <div class="sl inner"><label for="c1-si">range() of the inner loop</label><span class="num" id="c1-si-n">4</span><input type="range" id="c1-si" min="1" max="8" value="4"></div>
+        </div>
+        <p class="hint">Say it out loud as it runs: “outer takes <em>one</em> step… inner runs <em>all the way</em>… outer takes one more step.”</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= TAB 2 ================= -->
+  <section class="panel" id="panel-draw" role="tabpanel" hidden>
+    <div class="split">
+      <div class="card stage">
+        <canvas id="cv" width="760" height="760"></canvas>
+        <div class="legend">
+          <span>The marker changes color on each pass of the outer loop:</span>
+          <span class="swatches" id="rampsw"></span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="counters">
+          <div class="ctr is-outer"><span class="lab">outer — which shape</span><span class="val" id="c2-outer">0</span><span class="of" id="c2-outer-of"> of 6</span></div>
+          <div class="ctr is-inner"><span class="lab">inner — which side</span><span class="val" id="c2-inner">0</span><span class="of" id="c2-inner-of"> of 4</span></div>
+        </div>
+        <div class="tally">setMove calls so far: <b id="c2-total">0</b> <span class="eq" id="c2-eq">of 6 × 4 = 24</span></div>
+
+        <div class="pywrap">
+          <div class="pybar"><span>pinwheel.py</span><button class="copy" data-copy="c2">Copy</button></div>
+          <div class="py" id="c2-py"></div>
+        </div>
+        <div class="owner" id="c2-owner">Press Play, or step one line at a time.</div>
+
+        <div class="ctrls">
+          <button class="act" id="c2-play">Play</button>
+          <button class="act ghost" id="c2-step">One line</button>
+          <button class="act ghost" id="c2-reset">Reset</button>
+        </div>
+
+        <div class="sliders">
+          <div class="presets" id="presets"></div>
+          <div class="sl inner"><label for="c2-si">inner range() — sides</label><span class="num" id="c2-si-n">4</span><input type="range" id="c2-si" min="2" max="12" value="4"></div>
+          <div class="sl inner"><label for="c2-sti">inner setTurn — degrees</label><span class="num" id="c2-sti-n">90</span><input type="range" id="c2-sti" min="0" max="180" value="90"></div>
+          <div class="sl outer"><label for="c2-so">outer range() — how many shapes</label><span class="num" id="c2-so-n">6</span><input type="range" id="c2-so" min="1" max="36" value="6"></div>
+          <div class="sl outer"><label for="c2-sto">outer setTurn — degrees</label><span class="num" id="c2-sto-n">60</span><input type="range" id="c2-sto" min="0" max="180" value="60"></div>
+          <div class="sl"><label for="c2-len">setMove distance — cm</label><span class="num" id="c2-len-n">8</span><input type="range" id="c2-len" min="2" max="30" value="8"></div>
+          <div class="sl"><label for="c2-spd">Speed</label><span class="num" id="c2-spd-n">1×</span><input type="range" id="c2-spd" min="25" max="800" value="100"></div>
+        </div>
+        <p class="hint">Drag the outer sliders to 36 shapes and 10° to get the spirograph from the Gold challenge.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= TAB 3 ================= -->
+  <section class="panel" id="panel-break" role="tabpanel" hidden>
+    <div class="quiz" id="quiz"></div>
+  </section>
+
+  <details class="notes">
+    <summary>Teaching notes</summary>
+    <div class="body">
+      <p>Tabs 1 and 2 are built to be projected and talked through. Tab 3 works better on student devices, in pairs, before they start Part 5.</p>
+
+      <h3>Where this sits in the Day 11 guide</h3>
+      <ul>
+        <li><b>Part 2 → Part 3.</b> The second question in tab 3 is the exact jump your guide makes: two loops stacked in a row versus one loop inside another. Students who miss this think nesting is just “more loops.”</li>
+        <li><b>Part 3.</b> Tab 2 opens on the pinwheel from your guide — same numbers, <code>range(6)</code>, <code>range(4)</code>, <code>setMove("F", 8, 50)</code>, 60° rotate.</li>
+        <li><b>Part 4.</b> The indent bars in the code panel light up to show which loops own the current line, and the sentence under the code says it in words. The 4-spaces-vs-8-spaces question in tab 3 is the same idea as a prediction.</li>
+        <li><b>Part 5.</b> The preset buttons are the Bronze list, and the outer sliders reach 36 for the Gold spirograph.</li>
+      </ul>
+
+      <h3>The three errors this targets</h3>
+      <ul>
+        <li><b>Adding instead of multiplying.</b> Students read <code>range(5)</code> around <code>range(3)</code> as 8 actions. The running tally in tab 1 ticks past 8 while they watch.</li>
+        <li><b>Thinking the inner loop runs once for the whole program.</b> Each pass of the outer loop draws in a different marker color, so “the square got drawn six times” is something they see rather than something you tell them.</li>
+        <li><b>Indentation as decoration.</b> Most pairs will mis-indent the 60° turn at least once. Showing them the broken version <em>on purpose</em>, before it happens by accident, turns it from a failure into a prediction they got right.</li>
+      </ul>
+
+      <h3>Lines that work when a pair is stuck</h3>
+      <ul>
+        <li>“Put your finger on the last line of the inner loop. Python can't get past your finger until the inner loop is done. How many times does it hit your finger?”</li>
+        <li>“Which loop draws <em>a</em> square? Which loop draws <em>lots of</em> squares?”</li>
+        <li>“Read it inside out: the 8-space lines are what actually happens, the 4-space loop makes a shape, the no-indent loop makes a pattern.”</li>
+        <li>Unplugged for the ones who need their body involved: outer loop = rows of desks, inner loop = students in the row. Walk it. You don't start row 2 until row 1 is finished.</li>
+      </ul>
+
+      <h3>Preset reference</h3>
+      <table class="tbl">
+        <tr><th>Preset</th><th>inner</th><th>inner turn</th><th>outer</th><th>outer turn</th></tr>
+        <tr><td>Pinwheel (Part 3)</td><td>range(4)</td><td>90</td><td>range(6)</td><td>60</td></tr>
+        <tr><td>Triangle pinwheel</td><td>range(3)</td><td>120</td><td>range(6)</td><td>60</td></tr>
+        <tr><td>Hexagon pinwheel</td><td>range(6)</td><td>60</td><td>range(6)</td><td>60</td></tr>
+        <tr><td>12 squares</td><td>range(4)</td><td>90</td><td>range(12)</td><td>30</td></tr>
+        <tr><td>Star pinwheel</td><td>range(5)</td><td>144</td><td>range(8)</td><td>45</td></tr>
+        <tr><td>Spirograph (Gold)</td><td>range(4)</td><td>90</td><td>range(36)</td><td>10</td></tr>
+      </table>
+      <p>The outer turn that closes a pattern back to the start is always 360 ÷ outer repeats. Worth putting on the board — it's the one piece of arithmetic in Part 5 that pairs tend to guess at.</p>
+
+      <h3>Two things to do live</h3>
+      <ul>
+        <li>Set the outer turn to 0° and run it. Six squares, all stacked in the same spot. Anyone who thinks the inner loop only runs once has to explain where the extra ink came from.</li>
+        <li>Step one line at a time through the first two passes with the class calling out the counters before you press. Then let it play.</li>
+      </ul>
+
+      <h3>On the real robot</h3>
+      <p>A nested pattern drawn with the marker holder will drift — six squares won't land perfectly on top of each other. That's not a bug to fix before moving on. “Your code is right and your drawing is crooked” is the Day 8 test-and-iterate habit showing up again, and it's a genuinely useful thing for a seventh grader to sit with.</p>
+      <p>For pairs who need the block version first, the structure maps directly: a Repeat block inside a Repeat block, with the 60° turn in the outer Repeat but below the inner one.</p>
+    </div>
+  </details>
+
+</div>
+
+<script>
+/* ---------- theme ---------- */
+(function(){
+  var btn = document.getElementById('themeBtn');
+  function current(){
+    var set = document.documentElement.getAttribute('data-theme');
+    if(set) return set;
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+  function sync(){ btn.textContent = current()==='dark' ? 'Light mode' : 'Dark mode'; }
+  btn.addEventListener('click', function(){
+    document.documentElement.setAttribute('data-theme', current()==='dark' ? 'light' : 'dark');
+    sync(); redrawAll();
+  });
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(){ sync(); redrawAll(); });
+  sync();
+})();
+
+/* ---------- tabs ---------- */
+(function(){
+  var tabs = document.querySelectorAll('.tab');
+  tabs.forEach(function(t){
+    t.addEventListener('click', function(){
+      tabs.forEach(function(x){ x.setAttribute('aria-selected','false'); });
+      t.setAttribute('aria-selected','true');
+      ['count','draw','break'].forEach(function(n){
+        document.getElementById('panel-'+n).hidden = (n !== t.dataset.tab);
+      });
+      if(t.dataset.tab === 'draw'){ fitCanvas(); drawFrame(); }
+      if(t.dataset.tab === 'break'){ renderQuizArt(); }
+    });
+  });
+})();
+
+function cssVar(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+function esc(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+/* ---------- python line renderer ----------
+   line = { ind: 0|1|2, html: '...', b: 'fd'|'turnIn'|..., plain: 'source text' } */
+function renderPy(hostId, lines){
+  var host = document.getElementById(hostId);
+  host.innerHTML = lines.map(function(L, n){
+    var ind = '';
+    if(L.ind >= 1) ind += '<span class="ind ind-outer" data-lvl="1"></span>';
+    if(L.ind >= 2) ind += '<span class="ind ind-inner" data-lvl="2"></span>';
+    return '<div class="pyline" data-n="'+n+'"'+(L.b?' data-b="'+L.b+'"':'')+'>' +
+             '<span class="mark">&#9656;</span>' + ind + '<span class="src">'+L.html+'</span>' +
+           '</div>';
+  }).join('');
+}
+function hotLine(hostId, selector, liveOuter, liveInner){
+  var host = document.getElementById(hostId);
+  host.querySelectorAll('.pyline').forEach(function(el){
+    el.classList.toggle('hot', selector !== null && el.dataset.b === selector);
+  });
+  host.querySelectorAll('.ind-outer').forEach(function(e){ e.classList.toggle('live', !!liveOuter); });
+  host.querySelectorAll('.ind-inner').forEach(function(e){ e.classList.toggle('live', !!liveInner); });
+}
+function plainOf(lines){
+  return lines.map(function(L){ return '    '.repeat(L.ind) + L.plain; }).join('\n');
+}
+document.addEventListener('click', function(e){
+  var b = e.target.closest('.copy'); if(!b) return;
+  var txt = b.dataset.copy === 'c1' ? plainOf(c1Lines()) : plainOf(c2Lines());
+  navigator.clipboard.writeText(txt).then(function(){
+    var o = b.textContent; b.textContent = 'Copied'; setTimeout(function(){ b.textContent = o; }, 1400);
+  }).catch(function(){ b.textContent = 'Press Ctrl+C'; });
+});
+
+/* =========================================================
+   TAB 1 — counting
+   ========================================================= */
+var C1 = { outer:3, inner:4, idx:-1, timer:null };
+
+function c1Lines(){
+  return [
+    { ind:0, plain:'from BirdBrain import Finch', html:'<span class="kw">from</span> BirdBrain <span class="kw">import</span> Finch' },
+    { ind:0, plain:'myFinch = Finch()', html:'myFinch = Finch()' },
+    { ind:0, plain:'', html:'&nbsp;' },
+    { ind:0, plain:'for outer in range('+C1.outer+'):', b:'forO',
+      html:'<span class="kw">for</span> outer <span class="kw">in</span> range(<span class="num-lit">'+C1.outer+'</span>):' },
+    { ind:1, plain:'for inner in range('+C1.inner+'):', b:'forI',
+      html:'<span class="kw">for</span> inner <span class="kw">in</span> range(<span class="num-lit">'+C1.inner+'</span>):' },
+    { ind:2, plain:'myFinch.playNote(60, 0.2)', b:'beep',
+      html:'myFinch.playNote(60, 0.2)<span class="cm">   # one beep</span>' },
+    { ind:0, plain:'myFinch.stop()', b:'stop', html:'myFinch.stop()' }
+  ];
+}
+
+function c1Build(){
+  var wrap = document.getElementById('gridwrap'), html='';
+  for(var o=0;o<C1.outer;o++){
+    html += '<div class="rowline" data-o="'+o+'"><span class="rowtag">outer = '+o+'</span><div class="dots">';
+    for(var i=0;i<C1.inner;i++){
+      html += '<span class="dot" data-o="'+o+'" data-i="'+i+'">'+(o*C1.inner+i+1)+'</span>';
+    }
+    html += '</div></div>';
+  }
+  wrap.innerHTML = html;
+  document.getElementById('c1-outer-of').textContent = ' of '+C1.outer;
+  document.getElementById('c1-inner-of').textContent = ' of '+C1.inner;
+  renderPy('c1-py', c1Lines());
+  c1Paint();
+}
+
+function c1Paint(){
+  var total = C1.outer*C1.inner, n = C1.idx+1;
+  document.querySelectorAll('#gridwrap .dot').forEach(function(d){
+    var k = (+d.dataset.o)*C1.inner + (+d.dataset.i);
+    d.classList.toggle('lit', k <= C1.idx);
+    d.classList.toggle('now', k === C1.idx);
+  });
+  var curO = C1.idx<0 ? -1 : Math.floor(C1.idx/C1.inner);
+  var curI = C1.idx<0 ? -1 : C1.idx % C1.inner;
+  document.querySelectorAll('#gridwrap .rowline').forEach(function(r){
+    r.classList.toggle('active', (+r.dataset.o) === curO);
+  });
+  document.getElementById('c1-outer').textContent = curO<0 ? 0 : curO+1;
+  document.getElementById('c1-inner').textContent = curI<0 ? 0 : curI+1;
+  document.getElementById('c1-total').textContent = n;
+  document.getElementById('c1-eq').textContent = (n>=total && total>0)
+    ? '= '+C1.outer+' × '+C1.inner+'. Done.'
+    : '— ends at '+C1.outer+' × '+C1.inner+' = '+total;
+
+  var running = C1.idx>=0 && n<=total;
+  hotLine('c1-py', running ? 'beep' : null, running, running);
+  var ow = document.getElementById('c1-owner');
+  if(!running){
+    ow.innerHTML = 'Press Play. Watch how far the <span class="tag-i">inner</span> counter gets before the <span class="tag-o">outer</span> counter moves at all.';
+  } else {
+    ow.innerHTML = 'Running <code>playNote</code> — indented 8 spaces, so it sits inside the <span class="tag-o">outer</span> loop <b>and</b> the <span class="tag-i">inner</span> loop. '+
+                   'That is why it runs '+C1.outer+' × '+C1.inner+' times, not '+C1.outer+' + '+C1.inner+'.';
+  }
+}
+
+function c1Step(){
+  if(C1.idx+1 >= C1.outer*C1.inner){ c1Stop(); return false; }
+  C1.idx++; c1Paint(); return true;
+}
+function c1Stop(){ if(C1.timer){ clearInterval(C1.timer); C1.timer=null; } document.getElementById('c1-play').textContent='Play'; }
+document.getElementById('c1-play').addEventListener('click', function(){
+  if(C1.timer){ c1Stop(); return; }
+  if(C1.idx+1 >= C1.outer*C1.inner){ C1.idx=-1; c1Paint(); }
+  this.textContent='Pause';
+  C1.timer = setInterval(function(){ if(!c1Step()) c1Stop(); }, 330);
+});
+document.getElementById('c1-step').addEventListener('click', function(){ c1Stop(); c1Step(); });
+document.getElementById('c1-reset').addEventListener('click', function(){ c1Stop(); C1.idx=-1; c1Paint(); });
+document.getElementById('c1-so').addEventListener('input', function(){
+  C1.outer=+this.value; document.getElementById('c1-so-n').textContent=this.value; c1Stop(); C1.idx=-1; c1Build();
+});
+document.getElementById('c1-si').addEventListener('input', function(){
+  C1.inner=+this.value; document.getElementById('c1-si-n').textContent=this.value; c1Stop(); C1.idx=-1; c1Build();
+});
+c1Build();
+
+/* =========================================================
+   TAB 2 — Finch drawing
+   ========================================================= */
+var cv = document.getElementById('cv');
+var ctx = cv.getContext('2d');
+var P = { sides:4, innerTurn:90, outer:6, outerTurn:60, len:8, speed:1 };
+var RUN = null;
+
+function c2Lines(){
+  return [
+    { ind:0, plain:'from BirdBrain import Finch', html:'<span class="kw">from</span> BirdBrain <span class="kw">import</span> Finch' },
+    { ind:0, plain:'myFinch = Finch()', html:'myFinch = Finch()' },
+    { ind:0, plain:'', html:'&nbsp;' },
+    { ind:0, plain:'for outer in range('+P.outer+'):', b:'forO',
+      html:'<span class="kw">for</span> outer <span class="kw">in</span> range(<span class="num-lit">'+P.outer+'</span>):<span class="cm">        # repeat the whole shape</span>' },
+    { ind:1, plain:'for inner in range('+P.sides+'):', b:'forI',
+      html:'<span class="kw">for</span> inner <span class="kw">in</span> range(<span class="num-lit">'+P.sides+'</span>):<span class="cm">        # draw one shape</span>' },
+    { ind:2, plain:'myFinch.setMove("F", '+P.len+', 50)', b:'fd',
+      html:'myFinch.setMove(<span class="st">"F"</span>, '+P.len+', 50)' },
+    { ind:2, plain:'myFinch.setTurn("R", '+P.innerTurn+', 50)', b:'turnIn',
+      html:'myFinch.setTurn(<span class="st">"R"</span>, '+P.innerTurn+', 50)' },
+    { ind:1, plain:'myFinch.setTurn("R", '+P.outerTurn+', 50)', b:'turnOut',
+      html:'myFinch.setTurn(<span class="st">"R"</span>, '+P.outerTurn+', 50)<span class="cm">   # rotate, then next shape</span>' },
+    { ind:0, plain:'myFinch.stop()', b:'stop', html:'myFinch.stop()' }
+  ];
+}
+
+function buildProgram(p){
+  var prog=[];
+  for(var o=0;o<p.outer;o++){
+    for(var i=0;i<p.sides;i++){
+      prog.push({t:'fd', v:p.len, o:o, i:i, b:'fd'});
+      prog.push({t:'rt', v:p.innerTurn, o:o, i:i, b:'turnIn'});
+    }
+    prog.push({t:'rt', v:p.outerTurn, o:o, i:null, b:'turnOut'});
+  }
+  return prog;
+}
+
+function simulate(prog){
+  var x=0,y=0,h=-90,segs=[],pts=[{x:0,y:0}];
+  prog.forEach(function(ins){
+    if(ins.t==='fd'){
+      var r=h*Math.PI/180, nx=x+Math.cos(r)*ins.v, ny=y+Math.sin(r)*ins.v;
+      segs.push({x1:x,y1:y,x2:nx,y2:ny,o:ins.o}); pts.push({x:nx,y:ny}); x=nx; y=ny;
+    } else { h += ins.v; }
+  });
+  return {segs:segs, pts:pts};
+}
+
+function fitOf(pts, w, h, pad){
+  var minX=1e9,maxX=-1e9,minY=1e9,maxY=-1e9;
+  pts.forEach(function(p){ if(p.x<minX)minX=p.x; if(p.x>maxX)maxX=p.x; if(p.y<minY)minY=p.y; if(p.y>maxY)maxY=p.y; });
+  var dx=Math.max(maxX-minX,1), dy=Math.max(maxY-minY,1);
+  var s=Math.min((w-pad*2)/dx, (h-pad*2)/dy, 24);
+  return { s:s, ox:(w-dx*s)/2 - minX*s, oy:(h-dy*s)/2 - minY*s };
+}
+
+function isDark(){
+  var a = document.documentElement.getAttribute('data-theme');
+  return a ? a==='dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+}
+function rampColor(o, total){
+  var t = total<=1 ? 0 : o/(total-1);
+  var h = 178 + t*(262-178);
+  return 'hsl('+h.toFixed(0)+', '+(isDark()?68:62)+'%, '+(isDark()?62:44)+'%)';
+}
+function paintRamp(){
+  var el=document.getElementById('rampsw'); if(!el) return;
+  var w = Math.max(4, Math.min(15, Math.floor(230/P.outer)));
+  var h='';
+  for(var o=0;o<P.outer;o++){ h+='<span class="sw" style="width:'+w+'px;background:'+rampColor(o,P.outer)+'"></span>'; }
+  el.innerHTML=h;
+}
+
+function resetRun(){
+  var prog = buildProgram(P), sim = simulate(prog);
+  RUN = { prog:prog, idx:0, t:0, playing:false, last:0, x:0, y:0, h:-90, done:[], fit:null, pts:sim.pts, started:false };
+  renderPy('c2-py', c2Lines());
+  fitCanvas(); syncLabels(); drawFrame(); updateCounters();
+}
+
+function fitCanvas(){
+  if(!RUN) return;
+  var cssW = cv.clientWidth || 600;
+  var dpr = Math.min(window.devicePixelRatio||1, 2);
+  cv.width = Math.round(cssW*dpr); cv.height = Math.round(cssW*dpr);
+  cv.style.height = cssW+'px';
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  RUN.fit = fitOf(RUN.pts, cssW, cssW, 44);
+  RUN.cssW = cssW;
+}
+function T(p){ return { x: RUN.fit.ox + p.x*RUN.fit.s, y: RUN.fit.oy + p.y*RUN.fit.s }; }
+
+function drawGrid(w){
+  ctx.save(); ctx.strokeStyle = cssVar('--grid'); ctx.lineWidth = 1;
+  var step = w/16;
+  for(var i=1;i<16;i++){
+    ctx.beginPath(); ctx.moveTo(i*step,0); ctx.lineTo(i*step,w); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0,i*step); ctx.lineTo(w,i*step); ctx.stroke();
+  }
+  ctx.restore();
+}
+function drawRobot(x,y,h){
+  ctx.save(); ctx.translate(x,y); ctx.rotate(h*Math.PI/180);
+  ctx.fillStyle = cssVar('--ink');
+  ctx.beginPath(); ctx.moveTo(13,0); ctx.lineTo(-8,8); ctx.lineTo(-4,0); ctx.lineTo(-8,-8); ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+
+function drawFrame(){
+  if(!RUN) return;
+  var w = RUN.cssW;
+  ctx.clearRect(0,0,w,w);
+  ctx.fillStyle = cssVar('--sunk'); ctx.fillRect(0,0,w,w);
+  drawGrid(w);
+  ctx.lineWidth = 3.2; ctx.lineCap='round'; ctx.lineJoin='round';
+  RUN.done.forEach(function(s){
+    var a=T({x:s.x1,y:s.y1}), b=T({x:s.x2,y:s.y2});
+    ctx.strokeStyle = rampColor(s.o, P.outer);
+    ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
+  });
+  var cur = RUN.prog[RUN.idx], px=RUN.x, py=RUN.y, ph=RUN.h;
+  if(cur){
+    if(cur.t==='fd'){
+      var d=cur.v*RUN.t, r=ph*Math.PI/180;
+      px = RUN.x + Math.cos(r)*d; py = RUN.y + Math.sin(r)*d;
+      var a=T({x:RUN.x,y:RUN.y}), b=T({x:px,y:py});
+      ctx.strokeStyle = rampColor(cur.o, P.outer);
+      ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
+    } else { ph = RUN.h + cur.v*RUN.t; }
+  }
+  var st = T({x:0,y:0});
+  ctx.strokeStyle = cssVar('--muted'); ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.arc(st.x,st.y,5,0,Math.PI*2); ctx.stroke();
+  var rp = T({x:px,y:py});
+  drawRobot(rp.x, rp.y, ph);
+}
+
+function updateCounters(){
+  var cur = RUN.prog[RUN.idx];
+  var ow = document.getElementById('c2-owner');
+  if(!RUN.started){
+    document.getElementById('c2-outer').textContent = 0;
+    document.getElementById('c2-inner').textContent = 0;
+    hotLine('c2-py', null, false, false);
+    ow.innerHTML = 'Press Play, or step one line at a time.';
+  } else if(cur){
+    document.getElementById('c2-outer').textContent = cur.o+1;
+    document.getElementById('c2-inner').textContent = (cur.i===null ? '–' : cur.i+1);
+    hotLine('c2-py', cur.b, true, cur.i!==null);
+    if(cur.b === 'turnOut'){
+      ow.innerHTML = 'Indented <b>4 spaces</b> — inside the <span class="tag-o">outer</span> loop only. '+
+                     'It runs once per shape, not once per side. Shape '+(cur.o+1)+' is finished; this turn aims the Finch at the next one.';
+    } else {
+      ow.innerHTML = 'Indented <b>8 spaces</b> — inside the <span class="tag-o">outer</span> loop <b>and</b> the <span class="tag-i">inner</span> loop. '+
+                     'Side '+(cur.i+1)+' of shape '+(cur.o+1)+'.';
+    }
+  } else {
+    document.getElementById('c2-outer').textContent = P.outer;
+    document.getElementById('c2-inner').textContent = '–';
+    hotLine('c2-py', 'stop', false, false);
+    ow.innerHTML = 'Finished. <b>'+(P.outer*P.sides)+'</b> setMove calls — '+P.outer+' shapes × '+P.sides+' sides.';
+  }
+  document.getElementById('c2-total').textContent = RUN.done.length;
+}
+
+function syncLabels(){
+  document.getElementById('c2-outer-of').textContent = ' of '+P.outer;
+  document.getElementById('c2-inner-of').textContent = ' of '+P.sides;
+  document.getElementById('c2-eq').textContent = 'of '+P.outer+' × '+P.sides+' = '+(P.outer*P.sides);
+  paintRamp();
+}
+
+function commit(ins){
+  if(ins.t==='fd'){
+    var r=RUN.h*Math.PI/180, nx=RUN.x+Math.cos(r)*ins.v, ny=RUN.y+Math.sin(r)*ins.v;
+    RUN.done.push({x1:RUN.x,y1:RUN.y,x2:nx,y2:ny,o:ins.o}); RUN.x=nx; RUN.y=ny;
+  } else { RUN.h += ins.v; }
+}
+function stepOne(){
+  if(RUN.idx >= RUN.prog.length) return false;
+  if(!RUN.started){ RUN.started = true; drawFrame(); updateCounters(); return true; }
+  commit(RUN.prog[RUN.idx]); RUN.idx++; RUN.t=0;
+  drawFrame(); updateCounters();
+  return RUN.idx < RUN.prog.length;
+}
+function durOf(ins){ return (ins.t==='fd' ? Math.max(90, 26*ins.v) : 170) / P.speed; }
+function tick(now){
+  if(!RUN || !RUN.playing) return;
+  var dt = RUN.last ? (now-RUN.last) : 16;
+  RUN.last = now;
+  var ins = RUN.prog[RUN.idx];
+  if(!ins){ stopPlay(); return; }
+  RUN.t += dt/durOf(ins);
+  while(RUN.t >= 1){
+    RUN.t -= 1; commit(ins); RUN.idx++;
+    ins = RUN.prog[RUN.idx];
+    if(!ins){ RUN.t=0; drawFrame(); updateCounters(); stopPlay(); return; }
+  }
+  drawFrame(); updateCounters();
+  requestAnimationFrame(tick);
+}
+function stopPlay(){ if(RUN){ RUN.playing=false; RUN.last=0; } document.getElementById('c2-play').textContent='Play'; }
+
+document.getElementById('c2-play').addEventListener('click', function(){
+  if(RUN.playing){ stopPlay(); return; }
+  if(RUN.idx >= RUN.prog.length){ resetRun(); }
+  RUN.started = true; RUN.playing = true; RUN.last = 0;
+  this.textContent = 'Pause';
+  requestAnimationFrame(tick);
+});
+document.getElementById('c2-step').addEventListener('click', function(){ stopPlay(); stepOne(); });
+document.getElementById('c2-reset').addEventListener('click', function(){ stopPlay(); resetRun(); });
+
+function setSlider(id, val, suffix){
+  document.getElementById(id).value = val;
+  document.getElementById(id+'-n').textContent = val + (suffix||'');
+}
+function bindP(id, key, after){
+  document.getElementById(id).addEventListener('input', function(){
+    P[key] = +this.value;
+    document.getElementById(id+'-n').textContent = this.value;
+    if(after) after();
+    stopPlay(); resetRun();
+  });
+}
+bindP('c2-si','sides', function(){
+  P.innerTurn = Math.round(360/P.sides); setSlider('c2-sti', P.innerTurn);
+});
+bindP('c2-sti','innerTurn');
+bindP('c2-so','outer', function(){
+  P.outerTurn = Math.round(360/P.outer); setSlider('c2-sto', P.outerTurn);
+});
+bindP('c2-sto','outerTurn');
+bindP('c2-len','len');
+document.getElementById('c2-spd').addEventListener('input', function(){
+  P.speed = (+this.value)/100;
+  document.getElementById('c2-spd-n').textContent = (P.speed<1 ? P.speed.toFixed(2) : P.speed.toFixed(P.speed%1?1:0)) + '×';
+});
+
+var PRESETS = [
+  { n:'Pinwheel (Part 3)', s:4, t:90,  o:6,  ot:60, l:8,  sp:100 },
+  { n:'Triangle pinwheel', s:3, t:120, o:6,  ot:60, l:10, sp:100 },
+  { n:'Hexagon pinwheel',  s:6, t:60,  o:6,  ot:60, l:7,  sp:150 },
+  { n:'12 squares',        s:4, t:90,  o:12, ot:30, l:8,  sp:250 },
+  { n:'Star pinwheel',     s:5, t:144, o:8,  ot:45, l:9,  sp:200 },
+  { n:'Spirograph (Gold)', s:4, t:90,  o:36, ot:10, l:5,  sp:600 }
+];
+(function(){
+  var host = document.getElementById('presets');
+  host.innerHTML = PRESETS.map(function(p,i){ return '<button class="preset" data-i="'+i+'">'+p.n+'</button>'; }).join('');
+  host.querySelectorAll('.preset').forEach(function(b){
+    b.addEventListener('click', function(){
+      var p = PRESETS[+b.dataset.i];
+      P.sides=p.s; P.innerTurn=p.t; P.outer=p.o; P.outerTurn=p.ot; P.len=p.l; P.speed=p.sp/100;
+      setSlider('c2-si', p.s); setSlider('c2-sti', p.t);
+      setSlider('c2-so', p.o); setSlider('c2-sto', p.ot);
+      setSlider('c2-len', p.l);
+      document.getElementById('c2-spd').value = p.sp;
+      document.getElementById('c2-spd-n').textContent = (p.sp/100) + '×';
+      stopPlay(); resetRun();
+    });
+  });
+})();
+window.addEventListener('resize', function(){ fitCanvas(); drawFrame(); renderQuizArt(); });
+resetRun();
+
+/* =========================================================
+   TAB 3 — break it
+   ========================================================= */
+function seqProgram(){
+  var a=[], i;
+  for(i=0;i<4;i++){ a.push({t:'fd',v:10,o:0}); a.push({t:'rt',v:90,o:0}); }
+  for(i=0;i<3;i++){ a.push({t:'fd',v:10,o:1}); a.push({t:'rt',v:120,o:1}); }
+  return a;
+}
+
+var QS = [
+  {
+    ask: 'The Finch runs this. How many times does it call setMove?',
+    code: 'for outer in range(5):\n    for inner in range(3):\n        myFinch.setMove("F", 20, 50)',
+    opts: ['3', '8', '15'],
+    right: 2,
+    why: 'Three moves, five times over. The inner loop restarts from zero on every single pass of the outer loop, so you multiply: 5 × 3 = 15. Adding them gives 8, which is the most common wrong answer in this room — if you picked it, check whether you were counting the loops instead of the moves.'
+  },
+  {
+    ask: 'Part 2 of your guide stacked two loops one after the other. Part 3 put one loop inside another. Which one makes a pattern?',
+    code: null,
+    opts: ['Stacked loops', 'Nested loop', 'Both make patterns'],
+    right: 1,
+    why: 'Stacked loops run once each and stop — you get one square and one triangle, side by side, and that is all the program can ever produce. Nesting is different in kind, not in amount: the inner loop becomes a single step that the outer loop can repeat as many times as it likes. One square becomes six squares for the cost of two extra lines.',
+    art: [
+      { raw: seqProgram(), n:2, label:'for i in range(4):   # square\nfor i in range(3):   # triangle' },
+      { p:{sides:4,innerTurn:90,outer:6,outerTurn:60,len:8}, label:'for outer in range(6):\n    for inner in range(4):' }
+    ]
+  },
+  {
+    ask: 'A pair indents the 60° turn 8 spaces instead of 4, so it sits inside the inner loop. What comes out?',
+    code: 'for outer in range(6):\n    for inner in range(4):\n        myFinch.setMove("F", 8, 50)\n        myFinch.setTurn("R", 90, 50)\n        myFinch.setTurn("R", 60, 50)   # 8 spaces!',
+    opts: ['The same pinwheel', 'No squares at all', 'An error message'],
+    right: 1,
+    why: 'Python does not complain — the code is perfectly legal, it just means something else now. The Finch turns 90° and then 60° after every side, so it never makes a right angle and never closes a square. The inner loop lost the thing that made it a shape. This is why indentation is structure, not style.',
+    art: [
+      { p:{sides:4,innerTurn:90,outer:6,outerTurn:60,len:8}, label:'4 spaces — turn runs after each square' },
+      { p:{sides:24,innerTurn:150,outer:1,outerTurn:0,len:8}, label:'8 spaces — turn runs after each side' }
+    ]
+  },
+  {
+    ask: 'Swap the two numbers: range(3) around range(8), versus range(8) around range(3). What changes?',
+    code: null,
+    opts: ['Nothing changes', 'Same number of moves, different drawing', 'Different number of moves'],
+    right: 1,
+    why: 'Both run 24 setMove calls, because 3 × 8 and 8 × 3 are the same. The drawings are nothing alike. Which loop is on the outside decides what gets built, even when the total amount of work is identical — so "how many moves" and "what shape" are two separate questions.',
+    art: [
+      { p:{sides:8,innerTurn:45,outer:3,outerTurn:120,len:7}, label:'range(3) outer, range(8) inner\n24 moves' },
+      { p:{sides:3,innerTurn:120,outer:8,outerTurn:45,len:7}, label:'range(8) outer, range(3) inner\n24 moves' }
+    ]
+  },
+  {
+    ask: 'A pair sets the outer turn to 0 degrees and runs it. What shows up on the paper?',
+    code: 'for outer in range(6):\n    for inner in range(4):\n        myFinch.setMove("F", 8, 50)\n        myFinch.setTurn("R", 90, 50)\n    myFinch.setTurn("R", 0, 50)',
+    opts: ['A pinwheel', 'One square', 'Nothing at all'],
+    right: 1,
+    why: 'The Finch really does drive six squares — it just drives every one of them in exactly the same place, because nothing ever points it in a new direction between passes. The code is doing all the work and the paper shows almost none of it. The only clue is that the marker line gets darker.',
+    art: [
+      { p:{sides:4,innerTurn:90,outer:6,outerTurn:0,len:8}, label:'outer turn 0° — six squares stacked' },
+      { p:{sides:4,innerTurn:90,outer:6,outerTurn:60,len:8}, label:'outer turn 60° — six squares fanned' }
+    ]
+  }
+];
+
+function renderQuiz(){
+  var host = document.getElementById('quiz');
+  host.innerHTML = QS.map(function(q,n){
+    var art = '';
+    if(q.art){
+      art = '<div class="twoup">' + q.art.map(function(a,k){
+        return '<figure><canvas class="mini" data-q="'+n+'" data-k="'+k+'" width="400" height="400"></canvas>'+
+               '<figcaption>'+esc(a.label)+'</figcaption></figure>';
+      }).join('') + '</div>';
+    }
+    return '<div class="q" data-q="'+n+'">' +
+      '<div class="ask">'+q.ask+'</div>' +
+      (q.code ? '<div class="codeline">'+esc(q.code)+'</div><div style="height:12px"></div>' : '') +
+      '<div class="opts">' + q.opts.map(function(o,k){
+        return '<button class="opt" data-q="'+n+'" data-k="'+k+'">'+o+'</button>';
+      }).join('') + '</div>' +
+      '<div class="answer" hidden><p>'+q.why+'</p>'+art+'</div></div>';
+  }).join('');
+
+  host.querySelectorAll('.opt').forEach(function(b){
+    b.addEventListener('click', function(){
+      var n=+b.dataset.q, k=+b.dataset.k, q=QS[n];
+      var card = host.querySelector('.q[data-q="'+n+'"]');
+      b.classList.add(k===q.right ? 'right' : 'wrong');
+      if(k===q.right){
+        card.querySelectorAll('.opt').forEach(function(x){ x.disabled = true; });
+        card.querySelector('.answer').hidden = false;
+        renderQuizArt();
+      }
+    });
+  });
+}
+
+function miniDraw(canvas, spec){
+  var c = canvas.getContext('2d');
+  var cssW = canvas.clientWidth || 300;
+  var dpr = Math.min(window.devicePixelRatio||1, 2);
+  canvas.width = Math.round(cssW*dpr); canvas.height = Math.round(cssW*dpr);
+  canvas.style.height = cssW+'px';
+  c.setTransform(dpr,0,0,dpr,0,0);
+  c.fillStyle = cssVar('--sunk'); c.fillRect(0,0,cssW,cssW);
+  var prog = spec.raw ? spec.raw : buildProgram(spec.p);
+  var total = spec.raw ? spec.n : spec.p.outer;
+  var sim = simulate(prog);
+  var f = fitOf(sim.pts, cssW, cssW, 26);
+  c.lineWidth = 2.6; c.lineCap='round'; c.lineJoin='round';
+  sim.segs.forEach(function(s){
+    c.strokeStyle = rampColor(s.o, total);
+    c.beginPath();
+    c.moveTo(f.ox+s.x1*f.s, f.oy+s.y1*f.s);
+    c.lineTo(f.ox+s.x2*f.s, f.oy+s.y2*f.s);
+    c.stroke();
+  });
+}
+function renderQuizArt(){
+  document.querySelectorAll('canvas.mini').forEach(function(cvs){
+    var q = QS[+cvs.dataset.q];
+    if(q && q.art && q.art[+cvs.dataset.k]) miniDraw(cvs, q.art[+cvs.dataset.k]);
+  });
+}
+function redrawAll(){ if(RUN){ drawFrame(); paintRamp(); } renderQuizArt(); }
+
+renderQuiz();
+</script>
+</body>
+</html>
